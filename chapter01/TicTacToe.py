@@ -10,10 +10,18 @@
 from __future__ import print_function
 import numpy as np
 import pickle
+import logging
+from optparse import OptionParser
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
 
 BOARD_ROWS = 3
 BOARD_COLS = 3
 BOARD_SIZE = BOARD_ROWS * BOARD_COLS
+
+
+allStates = None
 
 class State:
     def __init__(self):
@@ -120,9 +128,6 @@ def getAllStates():
     allStates[currentState.getHash()] = (currentState, currentState.isEnd())
     getAllStatesImpl(currentState, currentSymbol, allStates)
     return allStates
-
-# all possible board configurations
-allStates = getAllStates()
 
 class Judger:
     # @player1: player who will move first, its chessman will be 1
@@ -300,15 +305,15 @@ def train(epochs=20000):
     player1Win = 0.0
     player2Win = 0.0
     for i in range(0, epochs):
-        print("Epoch", i)
+        logger.log(1, "Epoch {0}".format(i))
         winner = judger.play()
         if winner == 1:
             player1Win += 1
         if winner == -1:
             player2Win += 1
         judger.reset()
-    print(player1Win / epochs)
-    print(player2Win / epochs)
+    logger.log(2, 'player1 win prob is {0}'.format(player1Win / epochs))
+    logger.log(2, 'player2 win prob is {0}'.format(player2Win / epochs),)
     player1.savePolicy()
     player2.savePolicy()
 
@@ -321,15 +326,15 @@ def compete(turns=500):
     player1Win = 0.0
     player2Win = 0.0
     for i in range(0, turns):
-        print("Epoch", i)
+        logger.log(1, "Epoch {0}".format(i))
         winner = judger.play()
         if winner == 1:
             player1Win += 1
         if winner == -1:
             player2Win += 1
         judger.reset()
-    print(player1Win / turns)
-    print(player2Win / turns)
+    logger.log(2, 'player1 win prob is {0}'.format(player1Win / turns))
+    logger.log(2, 'player2 win prob is {0}'.format(player2Win / turns))
 
 def play():
     while True:
@@ -339,13 +344,32 @@ def play():
         player1.loadPolicy()
         winner = judger.play(True)
         if winner == player2.symbol:
-            print("Win!")
+            logger.info("Win!")
         elif winner == player1.symbol:
-            print("Lose!")
+            logger.info("Lose!")
         else:
-            print("Tie!")
+            logger.info("Tie!")
 
-train()
-compete()
-play()
+if __name__ == '__main__':
+    cmd_parser = OptionParser(usage="usage: %prog -C -P -L log_level")
+    cmd_parser.add_option('-C', action="store_true", dest="compete", help='Do compete.')
+    cmd_parser.add_option('-P', action="store_true", dest="play", help='Do play.')
+    cmd_parser.add_option('-L', type=int, dest="level", default=2, help='Log level.')
+
+    cmd_parser.parse_args()
+    (opts, argv) = cmd_parser.parse_args()
+
+    if len(argv) != 0:
+        cmd_parser.print_help()
+        exit(-1)
+
+    logger.setLevel(opts.level)
+    # all possible board configurations
+    allStates = getAllStates()
+
+    train()
+    if opts.compete or opts.play:
+        compete()
+    if opts.play:
+        play()
 
